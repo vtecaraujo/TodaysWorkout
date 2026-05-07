@@ -539,7 +539,7 @@ const USE_SERVER = window.location.protocol !== 'file:';  // true when served by
 async function load() {
   if (USE_SERVER) {
     try {
-      const res  = await fetch('blob/main/api/data/');
+      const res  = await fetch('blob/main/api/data/prova.json');
       const data = await res.json();
       atletas    = data.atletas    || [];
       resultados = data.resultados || [];
