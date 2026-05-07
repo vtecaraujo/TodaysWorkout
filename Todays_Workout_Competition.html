@@ -539,7 +539,7 @@ const USE_SERVER = window.location.protocol !== 'file:';  // true when served by
 async function load() {
   if (USE_SERVER) {
     try {
-      const res  = await fetch('/TodaysWorkout/blob/main/api/data/prova.json');
+      const res  = await fetch('./api/data/prova.json');
       const data = await res.json();
       atletas    = data.atletas    || [];
       resultados = data.resultados || [];
@@ -619,7 +619,7 @@ function saveAll() {
 
 async function saveToServer() {
   try {
-    await fetch('/TodaysWorkout/blob/main/api/data/prova.json', {
+    await fetch('./api/data/prova.json', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ atletas, resultados, config, cats, eventos })
