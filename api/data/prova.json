@@ -1,1 +1,70 @@
-
+{
+  "atletas": [
+    {
+      "dorsal": 1,
+      "nome": "Araujo",
+      "cat": "Masculino",
+      "email": "vtecaraujo@gmail.com",
+      "nasc": "1974-03-22"
+    },
+    {
+      "dorsal": 2,
+      "nome": "Pedro",
+      "cat": "Masculino",
+      "email": "pedro@pedro.com",
+      "nasc": "1985-12-12"
+    }
+  ],
+  "resultados": [
+    {
+      "rid": "1_ev_1778056336804_individual",
+      "dorsal": 1,
+      "eventoId": "ev_1778056336804",
+      "tipo": "individual",
+      "dorsalPar": null,
+      "tempo": "23:54",
+      "tseg": 1434,
+      "obs": 30,
+      "pen": 0,
+      "final": 1434
+    },
+    {
+      "rid": "1_ev_1778056459107_individual",
+      "dorsal": 1,
+      "eventoId": "ev_1778056459107",
+      "tipo": "individual",
+      "dorsalPar": null,
+      "tempo": "12:00",
+      "tseg": 720,
+      "obs": 1,
+      "pen": 0,
+      "final": 720
+    }
+  ],
+  "config": {
+    "nome": "Today Workout Os Mineiros",
+    "data": "2026-06-06",
+    "local": "Parque Urbano de São Pedro da Cova",
+    "nobs": "32"
+  },
+  "cats": [
+    "Geral",
+    "Júnior",
+    "Veterano",
+    "Feminino",
+    "Masculino"
+  ],
+  "eventos": [
+    {
+      "id": "ev_1778056336804",
+      "nome": "Prova de obstáculos",
+      "tipo": "individual"
+    },
+    {
+      "id": "ev_1778056459107",
+      "nome": "Power lift",
+      "tipo": "individual"
+    }
+  ],
+  "ts": "2026-05-06T08:34:40.566Z"
+}
