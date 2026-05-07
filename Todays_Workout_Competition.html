@@ -1,0 +1,1791 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prova de Obstáculos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg:#f7f6f3; --surface:#fff; --surface2:#f0efe9;
+  --border:#e0ddd6; --border2:#c8c5bc;
+  --text:#0a0908; --text2:#3a3835; --text3:#5a5753;
+  --green:#2d6a4f; --green-bg:#d8f3dc;
+  --red:#991b1b; --red-bg:#fee2e2;
+  --gold:#92400e; --gold-bg:#fef3c7;
+  --blue:#1d4e89; --blue-bg:#dbeafe;
+  --radius:8px; --radius-lg:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow-x:hidden}
+body{font-family:Georgia,'Times New Roman',serif;background:var(--bg);color:var(--text);font-size:21.9px;transition:background .3s;display:flex;flex-direction:column;min-height:100vh}
+body.page-config       {background:#fff4ec}
+body.page-checkin      {background:#edf7f1}
+body.page-resultados   {background:#eaf1fb}
+body.page-classificacao{background:#f5f0e8}
+body.page-exportacao   {background:#eaf1fb}
+
+/* HEADER */
+.header{background:#1a1916;color:#fff;padding:0 1.25rem;display:flex;align-items:center;justify-content:space-between;height:65px;position:sticky;top:0;z-index:100;width:100%}
+.hdr-left{display:flex;flex-direction:column;gap:1px}
+.hdr-title{font-size:18.8px;letter-spacing:.08em;text-transform:uppercase}
+.hdr-sub{font-size:13.8px;opacity:.5;font-family:'Courier New',monospace;display:none}
+.hdr-right{font-size:15px;opacity:.5;font-family:'Courier New',monospace}
+
+/* DB BAR */
+.db-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:1rem;font-size:13.8px;font-family:'Courier New',monospace;color:var(--text2)}
+.db-bar-top{display:flex;align-items:center;gap:6px;padding:8px 15px 5px}
+.db-bar-btns{display:flex;align-items:center;gap:6px;padding:0 12px 8px;flex-wrap:wrap}
+.db-dot{width:7px;height:8.8px;border-radius:50%;flex-shrink:0;background:var(--green)}
+.db-dot.warn{background:#d97706}
+.db-dot.err{background:var(--red)}
+.fs-hint{font-size:15px;font-family:'Courier New',monospace;color:#92400e;margin-bottom:1rem;padding:12px 18px;background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--radius);display:none}
+
+/* TABS */
+.tabs{display:flex;gap:4px;border-bottom:2px solid var(--border2);margin-bottom:1.5rem;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch}
+.tab{padding:11px 25px;font-family:Georgia,serif;font-size:16.2px;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;border:none;border-radius:6px 6px 0 0;color:#fff;border-bottom:3px solid transparent;margin-bottom:-2px;transition:opacity .15s;opacity:.55}
+.tab:hover:not(.active){opacity:.8}
+.tab.active{opacity:1}
+.tab-config{background:#c2600a} .tab-config.active{background:#e07020}
+.tab-checkin{background:#276843} .tab-checkin.active{background:#2d7a50}
+.tab-res{background:#1a4f8a} .tab-res.active{background:#2060aa}
+.tab-class{background:#8a7450} .tab-class.active{background:#a08860}
+.tab-export{background:#1a4f8a} .tab-export.active{background:#2060aa}
+.panel{display:none} .panel.active{display:block}
+
+/* CONTAINER */
+.container{width:100%;max-width:100%;padding:1rem 1.5rem;flex:1}
+
+/* CARD */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem 1.5rem;margin-bottom:1.25rem}
+.card-title{font-size:13.8px;font-family:'Courier New',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:1rem}
+
+/* FORM */
+.row{display:flex;gap:10px;align-items:flex-end;margin-bottom:10px;flex-wrap:wrap}
+.field{display:flex;flex-direction:column;gap:5px;flex:1;min-width:100px}
+.field label{font-size:13.8px;font-family:'Courier New',monospace;letter-spacing:.06em;color:var(--text2);text-transform:uppercase}
+input,select{width:100%;padding:11px 15px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:17.5px;font-family:Georgia,serif;transition:border-color .15s}
+input:focus,select:focus{outline:none;border-color:var(--text)}
+input[readonly]{background:var(--surface2);color:var(--text2)}
+
+/* BUTTONS */
+.btn{padding:11px 20px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface);color:var(--text);font-size:16.2px;font-family:Georgia,serif;cursor:pointer;white-space:nowrap;transition:background .12s,transform .1s}
+.btn:hover{background:var(--surface2)}
+.btn:active{transform:scale(.98)}
+.btn-sm{padding:6px 15px;font-size:15px}
+.btn-primary{background:#1a1916;color:#fff;border-color:#1a1916}
+.btn-primary:hover{opacity:.85;background:#1a1916}
+.btn-save{background:var(--green);color:#fff;border-color:var(--green);font-weight:bold}
+.btn-save:hover{opacity:.88;background:var(--green)}
+.btn-save:disabled{opacity:.45;cursor:default;transform:none}
+.btn-export{color:var(--blue);border-color:#93c5fd}
+.btn-export:hover{background:var(--blue-bg)}
+.btn-purple{color:#1a4f8a;border-color:#93c5fd}
+.btn-purple:hover{background:#dbeafe}
+.btn-danger{color:var(--red);border-color:#fca5a5}
+.btn-danger:hover{background:var(--red-bg)}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:1.5rem}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;text-align:center}
+.stat-val{font-size:35px;line-height:1;margin-bottom:4px}
+.stat-lbl{font-size:13.8px;font-family:'Courier New',monospace;letter-spacing:.06em;color:var(--text3);text-transform:uppercase}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto;width:100%}
+table{width:100%;border-collapse:collapse;font-size:16.2px;min-width:500px}
+th{text-align:left;font-size:12.5px;font-family:'Courier New',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);padding:9px 12px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:11px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg)}
+.empty{text-align:center;padding:2.5rem;color:var(--text3);font-style:italic}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:2px 11px;border-radius:20px;font-size:13.8px;font-family:'Courier New',monospace}
+.badge-ok{background:var(--green-bg);color:var(--green)}
+.badge-wait{background:var(--gold-bg);color:var(--gold)}
+
+/* MISC */
+.sec{font-size:13.8px;font-family:'Courier New',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+.toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px}
+.err{font-size:15px;font-family:'Courier New',monospace;color:var(--red);min-height:28.1px;margin-top:4px}
+.nota{font-size:15px;color:var(--text3);font-style:italic;margin-bottom:1rem}
+.prova-info{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.pos-1{color:#b7791f;font-weight:bold}
+.pos-2{color:#718096;font-weight:bold}
+.pos-3{color:#9c6b3c;font-weight:bold}
+
+/* EXPORT GRID */
+.exp-grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.exp-grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.exp-card{border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem}
+.exp-card-center{text-align:center}
+.exp-icon{font-size:35px;margin-bottom:8px}
+.exp-icon-sm{font-size:27.5px;margin-right:12px;flex-shrink:0}
+.exp-title{font-size:16.2px;font-weight:bold;margin-bottom:4px}
+.exp-desc{font-size:13.8px;color:var(--text3);margin-bottom:12px}
+.exp-row{display:flex;align-items:center}
+
+/* PRINT */
+@media print{
+  .header,.tabs,.db-bar,.btn,.fs-hint,.no-print{display:none!important}
+  .panel{display:none!important}
+  body{background:white!important;margin:0}
+  #print-zone{display:block!important}
+}
+#print-zone{display:none}
+
+/* MULTI-EVENT */
+.tab-eventos{background:#6b21a8} .tab-eventos.active{background:#9333ea}
+body.page-eventos{background:#faf5ff}
+.evento-badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:20px;font-size:12px;font-family:'Courier New',monospace;background:#ede9fe;color:#6b21a8;margin:1px}
+.par-badge{background:#fce7f3;color:#9d174d}
+.tbl-bib td,.tbl-bib th{padding:7px 10px}
+.bib-section{border-left:3px solid var(--border2);padding-left:12px;margin-bottom:14px}
+.bib-section-title{font-size:13px;font-family:'Courier New',monospace;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:6px}
+
+</style>
+</head>
+<body class="page-config">
+
+<div class="header">
+  <div class="hdr-left">
+    <span class="hdr-title" id="hdr-title">Prova de Obstáculos</span>
+    <span class="hdr-sub" id="hdr-sub">Prova de Obstáculos</span>
+  </div>
+  <span class="hdr-right" id="hdr-right"></span>
+</div>
+
+<div class="container">
+
+  <div class="db-bar">
+    <div class="db-bar-top">
+      <div class="db-dot" id="db-dot"></div>
+      <span id="db-status">A carregar...</span>
+    </div>
+    <div class="db-bar-btns">
+      <button class="btn btn-sm btn-save" id="btn-guardar" onclick="guardarAgora()">💾 Guardar</button>
+      <button class="btn btn-sm btn-export" id="btn-ligar" onclick="ligarFicheiro()">📁 Ligar ficheiro</button>
+      <button class="btn btn-sm btn-export" onclick="exportarJSON()">⬇ Backup JSON</button>
+      <button class="btn btn-sm btn-export" onclick="carregarJSON()">⬆ Carregar JSON</button>
+      <button class="btn btn-sm btn-export" onclick="exportarCSV()">📊 Exportar CSV</button>
+      <button class="btn btn-sm btn-export" onclick="importarCSV()">📥 Importar CSV</button>
+      <button class="btn btn-sm btn-danger" onclick="limparTudo()">🗑 Limpar tudo</button>
+    </div>
+  </div>
+  <div class="fs-hint" id="fs-hint">
+    Clica em <strong>📁 Ligar ficheiro</strong> para escolher onde guardar os dados em disco (.json). Depois de ligado, cada alteração é gravada automaticamente.
+  </div>
+  <input type="file" id="file-csv" accept=".csv" style="display:none" onchange="processarCSV(event)">
+  <input type="file" id="file-json" accept=".json" style="display:none" onchange="processarJSON(event)">
+
+  <div class="tabs">
+    <button class="tab tab-config active" onclick="showTab('config')">Configuração</button>
+    <button class="tab tab-checkin" onclick="showTab('checkin')">Check-in</button>
+    <button class="tab tab-res" onclick="showTab('resultados')">Resultados</button>
+    <button class="tab tab-class" onclick="showTab('classificacao')">Classificação</button>
+    <button class="tab tab-eventos" onclick="showTab('eventos')">Eventos</button>
+    <button class="tab tab-export" onclick="showTab('exportacao')">Exportação</button>
+  </div>
+
+  <!-- ══ CONFIGURAÇÃO ══ -->
+  <div id="tab-config" class="panel active">
+    <div class="card">
+      <div class="card-title">Dados da prova</div>
+      <div class="prova-info">
+        <div class="field"><label>Nome da prova</label><input id="cfg-nome" type="text" placeholder="Ex: Corrida dos Guerreiros 2025" oninput="saveConfig()"></div>
+        <div class="field"><label>Data</label><input id="cfg-data" type="date" oninput="saveConfig()"></div>
+        <div class="field"><label>Local</label><input id="cfg-local" type="text" placeholder="Ex: Parque da Cidade, Lisboa" oninput="saveConfig()"></div>
+        <div class="field"><label>Total de obstáculos</label><input id="cfg-nobs" type="number" min="1" max="99" placeholder="Ex: 15" oninput="saveConfig()"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Logotipo da empresa</div>
+      <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap">
+        <div id="logo-preview" style="width:120px;height:100px;border:1.5px dashed var(--border2);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;background:var(--surface2);flex-shrink:0;overflow:hidden">
+          <span id="logo-placeholder" style="font-size:13.8px;color:var(--text3);text-align:center;padding:8px">Sem logotipo</span>
+        </div>
+        <div style="flex:1;min-width:180px">
+          <div style="font-size:16.2px;color:var(--text2);margin-bottom:10px">O logotipo aparecerá no cabeçalho de todos os PDFs e impressões gerados.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary btn-sm" onclick="document.getElementById('file-logo').click()">📷 Carregar logotipo</button>
+            <button class="btn btn-sm btn-danger" id="btn-rm-logo" onclick="removerLogo()" style="display:none">Remover</button>
+          </div>
+          <div style="font-size:13.8px;color:var(--text3);margin-top:6px">Formatos: PNG, JPG, SVG · Recomendado: fundo transparente</div>
+        </div>
+      </div>
+      <input type="file" id="file-logo" accept="image/*" style="display:none" onchange="carregarLogo(event)">
+    </div>
+
+    <div class="card">
+      <div class="card-title">Eventos da prova</div>
+      <p style="font-size:15px;color:var(--text2);margin-bottom:1rem">Define os eventos disponíveis. Os atletas podem participar em vários eventos e em pares, mantendo o mesmo dorsal.</p>
+      <div class="row">
+        <div class="field"><label>Nome do evento</label><input id="cfg-ev-nome" type="text" placeholder="Ex: Levantamento de Pesos" onkeydown="if(event.key==='Enter')addEvento()"></div>
+        <div class="field" style="flex:.4"><label>Tipo participação</label>
+          <select id="cfg-ev-tipo">
+            <option value="individual">Individual</option>
+            <option value="pares">Pares</option>
+            <option value="equipa">Equipa</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field" style="flex:.5"><label>Métrica de performance</label>
+          <select id="cfg-ev-metrica" onchange="toggleMetricaExtra()">
+            <option value="obstaculos">Obstáculos completados</option>
+            <option value="repeticoes">Repetições (ex: levantamentos)</option>
+            <option value="distancia">Distância (metros)</option>
+            <option value="peso">Peso (kg)</option>
+            <option value="pontos">Pontos</option>
+            <option value="custom">Personalizado...</option>
+          </select>
+        </div>
+        <div class="field" id="cfg-ev-custom-wrap" style="flex:.4;display:none">
+          <label>Nome da métrica</label>
+          <input id="cfg-ev-custom" type="text" placeholder="Ex: Passagens">
+        </div>
+        <div class="field" style="flex:.35"><label>Melhor resultado é</label>
+          <select id="cfg-ev-criterio" onchange="toggleRacioHint()">
+            <option value="maior">Maior valor ganha</option>
+            <option value="menor">Menor tempo ganha</option>
+            <option value="racio">Rácio valor ÷ tempo</option>
+          </select>
+        </div>
+        <div class="field"><label>Valor máximo do evento</label><input id="cfg-ev-val-max" type="number" min="1" placeholder="Ex: 30 (repetições)"></div>
+        <div class="field"><label>Tempo máximo (segundos)</label><input id="cfg-ev-tempo-max" type="number" min="1" placeholder="Ex: 120 (segundos)"></div>
+      </div>
+      <div class="row" id="cfg-ev-racio-hint" style="display:none">
+        <div style="flex:1;padding:10px 14px;background:#fef9c3;border:1px solid #fcd34d;border-radius:var(--radius);font-size:14px;color:#92400e">
+          ⚖ Rácio normalizado: <strong>rácio = (valor ÷ valor_máx) ÷ (tempo ÷ tempo_máx)</strong>. Quem tiver rácio mais alto ganha.
+        </div>
+      </div>
+      <div class="row">
+        <div style="flex:1"></div>
+        <button class="btn btn-primary" onclick="addEvento()">+ Adicionar evento</button>
+      </div>
+      <div id="eventos-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Categorias</div>
+      <div class="row">
+        <div class="field"><label>Nova categoria</label><input id="cfg-cat" type="text" placeholder="Ex: Elite" onkeydown="if(event.key==='Enter')addCategoria()"></div>
+        <button class="btn btn-primary" onclick="addCategoria()">Adicionar</button>
+      </div>
+      <div id="cats-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"></div>
+    </div>
+  </div>
+
+  <!-- ══ CHECK-IN ══ -->
+  <div id="tab-checkin" class="panel">
+    <div class="card no-print">
+      <div class="card-title">Registar atleta</div>
+      <div class="row">
+        <div class="field" style="flex:.3"><label>Dorsal</label><input id="ci-dorsal" type="number" placeholder="Nº" min="1" oninput="ciVerificarExistente()" onkeydown="if(event.key==='Enter')addAtleta()"></div>
+        <div class="field"><label>Nome completo</label><input id="ci-nome" type="text" placeholder="Nome do atleta" onkeydown="if(event.key==='Enter')addAtleta()"></div>
+        <div class="field" style="flex:.45"><label>Categoria</label><select id="ci-cat"></select></div>
+        <button class="btn btn-primary" id="btn-registar" onclick="addAtleta()">Registar</button>
+      </div>
+      <div class="row">
+        <div class="field"><label>Email</label><input id="ci-email" type="email" placeholder="atleta@email.com"></div>
+        <div class="field" style="flex:.4"><label>Telemóvel</label><input id="ci-tel" type="tel" placeholder="Ex: 912 345 678"></div>
+        <div class="field" style="flex:.4"><label>Data de nascimento</label><input id="ci-nasc" type="date"></div>
+      </div>
+      <div id="ci-update-bar" style="display:none;margin-top:4px;padding:12px 15px;background:var(--gold-bg);border:1px solid #fcd34d;border-radius:var(--radius);display:none;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:15px;font-family:'Courier New',monospace;color:var(--gold)">⚠ Dorsal já existe — podes actualizar os dados deste atleta</span>
+        <button class="btn btn-sm" style="background:#d97706;color:#fff;border-color:#d97706;font-weight:bold;margin-left:auto" onclick="updateAtleta()">✏ Actualizar registo</button>
+      </div>
+      <p class="err" id="ci-err"></p>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-val" id="st-total">0</div><div class="stat-lbl">Inscritos</div></div>
+      <div class="stat"><div class="stat-val" id="st-res">0</div><div class="stat-lbl">Resultado</div></div>
+      <div class="stat"><div class="stat-val" id="st-falta">0</div><div class="stat-lbl">Pendentes</div></div>
+    </div>
+    <div class="toolbar">
+      <div class="sec">Lista de atletas</div>
+      <input type="text" id="ci-search" placeholder="Pesquisar..." style="width:200px;padding:8px 12px;font-size:16.2px" oninput="renderCheckin()">
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Dorsal</th><th>Nome</th><th>Categoria</th><th>Email</th><th>Telemóvel</th><th>Nasc.</th><th>Estado</th><th class="no-print"></th></tr></thead>
+        <tbody id="tb-ci"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ RESULTADOS ══ -->
+  <div id="tab-resultados" class="panel">
+    <div class="card no-print">
+      <div class="card-title">Lançar resultado</div>
+      <div class="row">
+        <div class="field" style="flex:.5"><label>Evento</label><select id="res-evento" onchange="onEventoChange()"></select></div>
+        <div class="field" style="flex:.4"><label>Tipo participação</label><select id="res-tipo" onchange="toggleParRow()"><option value="individual">Individual</option><option value="pares">Pares</option><option value="equipa">Equipa</option></select></div>
+      </div>
+      <div class="row" id="res-par-row" style="display:none">
+        <div class="field" style="flex:.3"><label>Dorsal Parceiro</label><input id="res-dorsal-par" type="number" placeholder="Nº" oninput="preencheNomePar()"></div>
+        <div class="field"><label>Parceiro</label><input id="res-nome-par" type="text" readonly placeholder="— digita o dorsal do parceiro —"></div>
+      </div>
+      <div class="row">
+        <div class="field" style="flex:.3"><label>Dorsal</label><input id="res-dorsal" type="number" placeholder="Nº" oninput="preencheNome()" onkeydown="if(event.key==='Enter')addResultado()"></div>
+        <div class="field"><label>Atleta</label><input id="res-nome" type="text" readonly placeholder="— digita o dorsal —"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Tempo (auto-formata)</label><input id="res-tempo" type="text" placeholder="Ex: 2324 → 23:24" maxlength="7" oninput="formatarTempo(this)" onkeydown="if(event.key==='Enter')addResultado()"></div>
+        <div class="field"><label>Obstáculos completos</label><input id="res-obs" type="number" min="0" placeholder="Ex: 12" onkeydown="if(event.key==='Enter')addResultado()"></div>
+        <div class="field" style="flex:.4"><label>Penaliz. (seg)</label><input id="res-pen" type="number" min="0" value="0" onkeydown="if(event.key==='Enter')addResultado()"></div>
+        <button class="btn btn-primary" onclick="addResultado()">Guardar</button>
+      </div>
+      <p class="err" id="res-err"></p>
+    </div>
+    <div class="toolbar">
+      <div class="sec">Resultados lançados</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input type="text" id="res-search" placeholder="Pesquisar..." style="width:160px;padding:8px 12px;font-size:16.2px" oninput="renderResultados()">
+        <button class="btn btn-sm btn-export" onclick="imprimirResultados()">🖨 Imprimir</button>
+        <button class="btn btn-sm btn-export" onclick="gerarPDF('resultados')">📄 PDF</button>
+        <button class="btn btn-sm btn-export" onclick="enviarEmail('resultados')">✉ Email</button>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Evento</th><th>Dorsal</th><th>Nome</th><th>Tipo</th><th>Cat.</th><th>Tempo</th><th>Obstáculos</th><th>Penaliz.</th><th>Tempo final</th><th class="no-print"></th></tr></thead>
+        <tbody id="tb-res"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ CLASSIFICAÇÃO ══ -->
+  <div id="tab-classificacao" class="panel">
+    <div class="toolbar no-print">
+      <div class="sec" style="margin:0">Classificação final</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select id="fil-evento" onchange="renderClass()" style="width:auto;padding:9px 15px;font-size:16.2px"><option value="">Todos os eventos</option></select>
+        <select id="fil-cat" onchange="renderClass()" style="width:auto;padding:9px 15px;font-size:16.2px"></select>
+        <select id="fil-tipo" onchange="renderClass()" style="width:auto;padding:9px 15px;font-size:16.2px"><option value="">Todos os tipos</option><option value="individual">Individual</option><option value="pares">Pares</option><option value="equipa">Equipa</option></select>
+        <button class="btn btn-sm btn-export" onclick="imprimirClass()">🖨 Imprimir</button>
+        <button class="btn btn-sm btn-export" onclick="gerarPDF('classificacao')">📄 PDF</button>
+        <button class="btn btn-sm btn-export" onclick="enviarEmail('classificacao')">✉ Email</button>
+      </div>
+    </div>
+    <p class="nota">Critério: maior número de obstáculos primeiro; empate desempata pelo menor tempo final.</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Pos.</th><th>Dorsal</th><th>Nome</th><th>Evento</th><th>Cat.</th><th>Valor</th><th>Tempo</th><th>Penaliz.</th><th>Tempo final</th><th id="th-racio" style="display:none">Rácio</th></tr></thead>
+        <tbody id="tb-class"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ EXPORTAÇÃO ══ -->
+
+  <!-- ══ EVENTOS — ANÁLISE POR DORSAL ══ -->
+  <div id="tab-eventos" class="panel">
+    <div class="card">
+      <div class="card-title">🔍 Análise por dorsal / atleta</div>
+      <div class="row">
+        <div class="field"><label>Dorsal ou nome</label><input id="ev-search" type="text" placeholder="Ex: 42 ou João Silva" oninput="renderEventosAtleta()"></div>
+      </div>
+    </div>
+    <div id="ev-atleta-result"></div>
+    <div class="card" style="margin-top:1rem">
+      <div class="card-title">📊 Resumo de todos os eventos</div>
+      <div class="toolbar no-print" style="margin-bottom:.75rem">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-sm btn-export" onclick="gerarPDF('eventos')">📄 PDF Eventos</button>
+          <button class="btn btn-sm btn-export" onclick="imprimirEventos()">🖨 Imprimir</button>
+        </div>
+      </div>
+      <div id="ev-resumo-table"></div>
+    </div>
+  </div>
+
+  <div id="tab-exportacao" class="panel">
+
+    <div class="card">
+      <div class="card-title">📄 Gerar PDF</div>
+      <p style="font-size:16.2px;color:var(--text2);margin-bottom:1rem">Abre uma janela formatada. No diálogo do browser escolhe <strong>Guardar como PDF</strong>.</p>
+      <div class="exp-grid-3">
+        <div class="exp-card exp-card-center">
+          <div class="exp-icon">📋</div>
+          <div class="exp-title">Resultados</div>
+          <div class="exp-desc">Todos os tempos e obstáculos</div>
+          <button class="btn btn-primary" style="width:100%" onclick="gerarPDF('resultados')">Gerar PDF</button>
+        </div>
+        <div class="exp-card exp-card-center">
+          <div class="exp-icon">🏆</div>
+          <div class="exp-title">Classificação</div>
+          <div class="exp-desc">Ranking final ordenado</div>
+          <button class="btn btn-primary" style="width:100%" onclick="gerarPDF('classificacao')">Gerar PDF</button>
+        </div>
+        <div class="exp-card exp-card-center">
+          <div class="exp-icon">📊</div>
+          <div class="exp-title">Relatório completo</div>
+          <div class="exp-desc">Atletas + resultados + ranking</div>
+          <button class="btn btn-primary" style="width:100%" onclick="gerarPDF('completo')">Gerar PDF</button>
+        </div>
+        <div class="exp-card exp-card-center">
+          <div class="exp-icon">🎯</div>
+          <div class="exp-title">Por evento</div>
+          <div class="exp-desc">Ranking de cada evento separado</div>
+          <button class="btn btn-primary" style="width:100%" onclick="gerarPDF('eventos')">Gerar PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🖨 Imprimir</div>
+      <div class="exp-grid-2">
+        <div class="exp-card exp-row">
+          <div class="exp-icon-sm">📋</div>
+          <div style="flex:1">
+            <div class="exp-title">Resultados</div>
+            <div style="font-size:13.8px;color:var(--text3)">Tabela de tempos e obstáculos</div>
+          </div>
+          <button class="btn btn-sm btn-export" onclick="imprimirResultados()">Imprimir</button>
+        </div>
+        <div class="exp-card exp-row">
+          <div class="exp-icon-sm">🏆</div>
+          <div style="flex:1">
+            <div class="exp-title">Classificação</div>
+            <div style="font-size:13.8px;color:var(--text3)">Ranking final ordenado</div>
+          </div>
+          <button class="btn btn-sm btn-export" onclick="imprimirClass()">Imprimir</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">💾 Guardar ficheiros</div>
+      <div class="exp-grid-3" style="margin-bottom:12px">
+        <div class="exp-card exp-card-center">
+          <div class="exp-icon">🗂</div>
+          <div class="exp-title">Backup JSON</div>
+          <div class="exp-desc">Todos os dados da prova</div>
+          <button class="btn btn-sm btn-export" style="width:100%" onclick="exportarJSON()">Guardar JSON</button>
+        </div>
+        <div class="exp-card exp-card-center">
+          <div class="exp-icon">📊</div>
+          <div class="exp-title">Exportar CSV</div>
+          <div class="exp-desc">Compatível com Excel</div>
+          <button class="btn btn-sm btn-export" style="width:100%" onclick="exportarCSV()">Guardar CSV</button>
+        </div>
+        <div class="exp-card exp-card-center">
+          <div class="exp-icon">📂</div>
+          <div class="exp-title">Carregar JSON</div>
+          <div class="exp-desc">Restaurar backup anterior</div>
+          <button class="btn btn-sm btn-export" style="width:100%" onclick="carregarJSON()">Abrir JSON</button>
+        </div>
+      </div>
+      <div class="exp-card exp-row" style="border-color:#16a34a;background:#f0fdf4">
+        <div style="font-size:35px;margin-right:14px">🟢</div>
+        <div style="flex:1">
+          <div class="exp-title" style="color:#166534">Exportar para Excel (.xlsx)</div>
+          <div style="font-size:13.8px;color:#16a34a">3 folhas: Check-in · Resultados · Classificação</div>
+        </div>
+        <button class="btn btn-sm" style="background:#16a34a;color:#fff;border-color:#16a34a;font-weight:bold" onclick="exportarExcel()">Exportar Excel</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">✉ Enviar por email</div>
+      <div class="exp-grid-2">
+        <div class="exp-card exp-row">
+          <div class="exp-icon-sm">📋</div>
+          <div style="flex:1">
+            <div class="exp-title">Resultados</div>
+            <div style="font-size:13.8px;color:var(--text3)">Abre o cliente de email</div>
+          </div>
+          <button class="btn btn-sm btn-export" onclick="enviarEmail('resultados')">Enviar</button>
+        </div>
+        <div class="exp-card exp-row">
+          <div class="exp-icon-sm">🏆</div>
+          <div style="flex:1">
+            <div class="exp-title">Classificação</div>
+            <div style="font-size:13.8px;color:var(--text3)">Abre o cliente de email</div>
+          </div>
+          <button class="btn btn-sm btn-export" onclick="enviarEmail('classificacao')">Enviar</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PRINT ZONE -->
+  <div id="print-zone"></div>
+
+</div><!-- /container -->
+
+<script>
+// ════════════════════════════════════════════════════════════
+// STATE & STORAGE KEYS
+// ════════════════════════════════════════════════════════════
+const K = {A:'po-atletas', R:'po-resultados', C:'po-config', T:'po-cats', E:'po-eventos'};
+let atletas=[], resultados=[], config={}, cats=['Geral','Júnior','Veterano','Feminino','Masculino'], eventos=[];
+let fileHandle=null, saveTimer=null;
+const HAS_FS = ('showSaveFilePicker' in window);
+
+// ════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+// SERVER API DETECTION
+// ════════════════════════════════════════════════════════════
+const USE_SERVER = window.location.protocol !== 'file:';  // true when served by Node.js
+
+async function load() {
+  if (USE_SERVER) {
+    try {
+      const res  = await fetch('/api/data');
+      const data = await res.json();
+      atletas    = data.atletas    || [];
+      resultados = data.resultados || [];
+      config     = data.config     || {};
+      cats       = data.cats?.length ? data.cats : cats;
+      eventos    = data.eventos   || [];
+      // Also mirror to localStorage as cache
+      ls(K.A, atletas); ls(K.R, resultados); ls(K.C, config); ls(K.T, cats); ls(K.E, eventos);
+    } catch(e) {
+      // Fallback to localStorage if server unreachable
+      loadFromLS();
+    }
+  } else {
+    loadFromLS();
+    if (!HAS_FS) {
+      document.getElementById('btn-ligar').style.display = 'none';
+      document.getElementById('fs-hint').textContent = 'O teu browser não suporta gravação automática em ficheiro. Usa Chrome ou Edge.';
+      document.getElementById('fs-hint').style.display = 'block';
+    } else {
+      restoreHandle();
+    }
+  }
+
+  if (USE_SERVER) {
+    // Hide File System buttons — server handles persistence
+    document.getElementById('btn-ligar').style.display = 'none';
+    document.getElementById('fs-hint').style.display   = 'none';
+  }
+
+  applyConfig();
+  renderCats();
+  fillCatSelects();
+  renderCheckin();
+  renderResultados();
+  renderClass();
+  renderEventos();
+  fillEventoSelects();
+  updateStats();
+  updateHeader();
+  setStatus();
+  restoreLogo();
+}
+
+function loadFromLS() {
+  try {
+    atletas    = JSON.parse(localStorage.getItem(K.A) || '[]');
+    resultados = JSON.parse(localStorage.getItem(K.R) || '[]');
+    config     = JSON.parse(localStorage.getItem(K.C) || '{}');
+    cats       = JSON.parse(localStorage.getItem(K.T) || JSON.stringify(cats));
+    eventos    = JSON.parse(localStorage.getItem(K.E) || '[]');
+  } catch(e) { atletas=[]; resultados=[]; config={}; }
+}
+
+// ════════════════════════════════════════════════════════════
+// SAVE
+// ════════════════════════════════════════════════════════════
+function ls(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {}
+}
+
+let serverSaveTimer = null;
+
+function saveAll() {
+  // Always mirror to localStorage
+  ls(K.A, atletas); ls(K.R, resultados); ls(K.C, config); ls(K.T, cats); ls(K.E, eventos);
+
+  if (USE_SERVER) {
+    // Debounced save to server
+    clearTimeout(serverSaveTimer);
+    serverSaveTimer = setTimeout(saveToServer, 600);
+  } else if (fileHandle) {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(writeFile, 400);
+  }
+  setStatus();
+}
+
+async function saveToServer() {
+  try {
+    await fetch('/api/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ atletas, resultados, config, cats, eventos })
+    });
+    setStatus('saved');
+  } catch(e) {
+    setStatus('error');
+  }
+}
+
+async function guardarAgora() {
+  const btn = document.getElementById('btn-guardar');
+  btn.disabled = true;
+  btn.textContent = 'A guardar...';
+  ls(K.A, atletas); ls(K.R, resultados); ls(K.C, config); ls(K.T, cats); ls(K.E, eventos);
+  if (USE_SERVER) {
+    await saveToServer();
+  } else if (fileHandle) {
+    await writeFile();
+  }
+  btn.textContent = '✓ Guardado';
+  setTimeout(() => { btn.disabled=false; btn.innerHTML='💾 Guardar'; }, 1800);
+}
+
+function setStatus(state) {
+  const dot = document.getElementById('db-dot');
+  const lbl = document.getElementById('db-status');
+  dot.className = 'db-dot';
+  if (state === 'error') {
+    dot.className = 'db-dot err';
+    lbl.textContent = `⚠ Erro ao guardar no servidor · ${atletas.length} atletas · ${resultados.length} resultados`;
+  } else if (USE_SERVER) {
+    lbl.textContent = `✓ Servidor · data/prova.json · ${atletas.length} atletas · ${resultados.length} resultados`;
+  } else if (fileHandle) {
+    lbl.textContent = `✓ ${fileHandle.name} · ${atletas.length} atletas · ${resultados.length} resultados`;
+  } else {
+    lbl.textContent = `localStorage · ${atletas.length} atletas · ${resultados.length} resultados`;
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// LOGO
+// ════════════════════════════════════════════════════════════
+function carregarLogo(e) {
+  const file = e.target.files[0]; if (!file) return;
+  if (file.size > 2 * 1024 * 1024) { alert('Ficheiro demasiado grande. Máximo 2MB.'); return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const data = ev.target.result;
+    try { localStorage.setItem('po-logo', data); } catch(err) { alert('Não foi possível guardar o logotipo (armazenamento cheio?).'); return; }
+    applyLogo(data);
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+function applyLogo(data) {
+  const preview = document.getElementById('logo-preview');
+  const placeholder = document.getElementById('logo-placeholder');
+  const btnRm = document.getElementById('btn-rm-logo');
+  if (data) {
+    preview.innerHTML = `<img src="${data}" style="max-width:116px;max-height:118.8px;object-fit:contain;border-radius:4px">`;
+    btnRm.style.display = 'inline-flex';
+  } else {
+    preview.innerHTML = `<span id="logo-placeholder" style="font-size:13.8px;color:var(--text3);text-align:center;padding:8px">Sem logotipo</span>`;
+    btnRm.style.display = 'none';
+  }
+}
+
+function removerLogo() {
+  localStorage.removeItem('po-logo');
+  applyLogo(null);
+}
+
+function restoreLogo() {
+  const data = localStorage.getItem('po-logo');
+  if (data) applyLogo(data);
+}
+
+// ════════════════════════════════════════════════════════════
+// FILE SYSTEM ACCESS API
+// ════════════════════════════════════════════════════════════
+async function ligarFicheiro() {
+  if (!HAS_FS) { alert('Usa Chrome ou Edge para esta funcionalidade.'); return; }
+  try {
+    fileHandle = await window.showSaveFilePicker({
+      suggestedName: (config.nome||'prova')+'.json',
+      types: [{ description: 'JSON', accept: {'application/json':['.json']} }]
+    });
+    await saveHandle(fileHandle);
+    document.getElementById('fs-hint').style.display = 'none';
+    await writeFile();
+    setStatus();
+  } catch(e) { if (e.name!=='AbortError') alert('Não foi possível ligar o ficheiro.'); }
+}
+
+async function writeFile() {
+  if (!fileHandle) return;
+  try {
+    const data = JSON.stringify({atletas, resultados, config, cats, eventos, ts: new Date().toISOString()}, null, 2);
+    const w = await fileHandle.createWritable();
+    await w.write(data); await w.close();
+    setStatus();
+  } catch(e) { console.warn('writeFile error', e); }
+}
+
+function openIDB() {
+  return new Promise((res,rej) => {
+    const r = indexedDB.open('po-fs',1);
+    r.onupgradeneeded = e => e.target.result.createObjectStore('h');
+    r.onsuccess = e => res(e.target.result);
+    r.onerror = () => rej();
+  });
+}
+async function saveHandle(h) {
+  try { const db=await openIDB(); db.transaction('h','readwrite').objectStore('h').put(h,'main'); } catch(e){}
+}
+async function restoreHandle() {
+  try {
+    const db = await openIDB();
+    const h  = await new Promise((res,rej) => {
+      const r = db.transaction('h','readonly').objectStore('h').get('main');
+      r.onsuccess = () => res(r.result); r.onerror = () => rej();
+    });
+    if (!h) { document.getElementById('fs-hint').style.display='block'; return; }
+    const perm = await h.queryPermission({mode:'readwrite'});
+    if (perm === 'granted') {
+      fileHandle = h;
+      document.getElementById('fs-hint').style.display = 'none';
+      await mergeFile(h);
+    } else {
+      document.getElementById('fs-hint').innerHTML = `Ficheiro anterior: <strong>${h.name}</strong>. Clica em <strong>📁 Ligar ficheiro</strong> para restabelecer.`;
+      document.getElementById('fs-hint').style.display = 'block';
+      document.getElementById('btn-ligar').onclick = async () => {
+        const p = await h.requestPermission({mode:'readwrite'});
+        if (p==='granted') { fileHandle=h; await saveHandle(h); document.getElementById('fs-hint').style.display='none'; document.getElementById('btn-ligar').onclick=ligarFicheiro; await mergeFile(h); await writeFile(); setStatus(); }
+        else ligarFicheiro();
+      };
+    }
+  } catch(e) { document.getElementById('fs-hint').style.display='block'; }
+}
+async function mergeFile(h) {
+  try {
+    const txt = await (await h.getFile()).text();
+    const d   = JSON.parse(txt);
+    if (d.atletas    && d.atletas.length    >= atletas.length)    { atletas=d.atletas;       ls(K.A,atletas); }
+    if (d.resultados && d.resultados.length >= resultados.length) { resultados=d.resultados; ls(K.R,resultados); }
+    if (d.config) { config=d.config; ls(K.C,config); applyConfig(); updateHeader(); }
+    if (d.cats && d.cats.length >= cats.length) { cats=d.cats; ls(K.T,cats); }
+    if (d.eventos) { eventos=d.eventos; ls(K.E,eventos); }
+    renderCats(); fillCatSelects(); fillEventoSelects(); renderCheckin(); renderResultados(); renderClass(); renderEventos(); updateStats();
+  } catch(e) {}
+}
+
+// ════════════════════════════════════════════════════════════
+// TABS
+// ════════════════════════════════════════════════════════════
+function showTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelector('.tab-'+( id==='resultados'?'res':id==='classificacao'?'class':id==='exportacao'?'export':id==='eventos'?'eventos':id==='checkin'?'checkin':'config')).classList.add('active');
+  document.getElementById('tab-'+id).classList.add('active');
+  document.body.className = 'page-'+id;
+  if (id==='classificacao') { fillCatSelects(); fillEventoSelects(); renderClass(); }
+  if (id==='eventos') { renderEventos(); renderEventosAtleta(); }
+}
+
+// ════════════════════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════════════════════
+function applyConfig() {
+  document.getElementById('cfg-nome').value  = config.nome  || '';
+  document.getElementById('cfg-data').value  = config.data  || '';
+  document.getElementById('cfg-local').value = config.local || '';
+  document.getElementById('cfg-nobs').value  = config.nobs  || '';
+}
+function saveConfig() {
+  config = {
+    nome:  document.getElementById('cfg-nome').value,
+    data:  document.getElementById('cfg-data').value,
+    local: document.getElementById('cfg-local').value,
+    nobs:  document.getElementById('cfg-nobs').value
+  };
+  saveAll(); updateHeader();
+}
+function updateHeader() {
+  const nome  = config.nome  || '';
+  const data  = config.data  ? config.data.split('-').reverse().join('/') : '';
+  const local = config.local || '';
+  const title = document.getElementById('hdr-title');
+  const sub   = document.getElementById('hdr-sub');
+  const right = document.getElementById('hdr-right');
+  if (nome) { title.textContent=nome; sub.style.display='block'; } else { title.textContent='Prova de Obstáculos'; sub.style.display='none'; }
+  right.textContent = [data,local].filter(Boolean).join(' · ');
+  document.title = nome ? nome+' — Prova de Obstáculos' : 'Prova de Obstáculos';
+}
+
+// ════════════════════════════════════════════════════════════
+// CATEGORIAS
+// ════════════════════════════════════════════════════════════
+function addCategoria() {
+  const v = document.getElementById('cfg-cat').value.trim();
+  if (!v || cats.includes(v)) return;
+  cats.push(v); saveAll();
+  document.getElementById('cfg-cat').value = '';
+  renderCats(); fillCatSelects();
+}
+function removeCategoria(c) {
+  if (atletas.find(a=>a.cat===c)) { alert('Existem atletas nesta categoria — não é possível remover.'); return; }
+  cats = cats.filter(x=>x!==c); saveAll(); renderCats(); fillCatSelects();
+}
+function renderCats() {
+  document.getElementById('cats-list').innerHTML = cats.map(c =>
+    `<span style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 15px;font-size:16.2px">
+      ${c}<span onclick="removeCategoria('${c}')" style="cursor:pointer;color:var(--text3);font-size:13.8px">✕</span>
+    </span>`
+  ).join('');
+}
+function fillCatSelects() {
+  const opts = cats.map(c=>`<option>${c}</option>`).join('');
+  document.getElementById('ci-cat').innerHTML = opts;
+  const f = document.getElementById('fil-cat');
+  const v = f.value;
+  f.innerHTML = '<option value="">Todas as categorias</option>'+opts;
+  if (v) f.value = v;
+}
+function fillEventoSelects() {
+  const opts = eventos.map(e=>`<option value="${e.id}">${e.nome} (${e.tipo})</option>`).join('');
+  const re = document.getElementById('res-evento');
+  if (re) re.innerHTML = opts || '<option value="">— sem eventos —</option>';
+  const fe = document.getElementById('fil-evento');
+  const fv = fe ? fe.value : '';
+  if (fe) { fe.innerHTML = '<option value="">Todos os eventos</option>'+opts; if (fv) fe.value=fv; }
+}
+
+// ════════════════════════════════════════════════════════════
+// CHECK-IN
+// ════════════════════════════════════════════════════════════
+function ciVerificarExistente() {
+  const dorsal = parseInt(document.getElementById('ci-dorsal').value);
+  const bar    = document.getElementById('ci-update-bar');
+  const a      = atletas.find(x => x.dorsal === dorsal);
+  if (a) {
+    // Pre-fill fields with existing data
+    document.getElementById('ci-nome').value  = a.nome  || '';
+    document.getElementById('ci-cat').value   = a.cat   || cats[0];
+    document.getElementById('ci-email').value = a.email || '';
+    document.getElementById('ci-tel').value   = a.tel   || '';
+    document.getElementById('ci-nasc').value  = a.nasc  || '';
+    bar.style.display = 'flex';
+    document.getElementById('ci-err').textContent = '';
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+function updateAtleta() {
+  const dorsal = parseInt(document.getElementById('ci-dorsal').value);
+  const nome   = document.getElementById('ci-nome').value.trim();
+  const cat    = document.getElementById('ci-cat').value;
+  const email  = document.getElementById('ci-email').value.trim();
+  const tel    = document.getElementById('ci-tel').value.trim();
+  const nasc   = document.getElementById('ci-nasc').value;
+  const err    = document.getElementById('ci-err');
+  if (!dorsal || !nome) { err.textContent = 'Preenche o dorsal e o nome.'; return; }
+  const idx = atletas.findIndex(a => a.dorsal === dorsal);
+  if (idx < 0) { err.textContent = `Dorsal ${dorsal} não encontrado.`; return; }
+  err.textContent = '';
+  atletas[idx] = { ...atletas[idx], nome, cat, email, tel, nasc };
+  saveAll();
+  document.getElementById('ci-dorsal').value  = '';
+  document.getElementById('ci-nome').value    = '';
+  document.getElementById('ci-email').value   = '';
+  document.getElementById('ci-tel').value     = '';
+  document.getElementById('ci-nasc').value    = '';
+  document.getElementById('ci-update-bar').style.display = 'none';
+  document.getElementById('ci-dorsal').focus();
+  renderCheckin(); updateStats();
+}
+
+function addAtleta() {
+  const dorsal = parseInt(document.getElementById('ci-dorsal').value);
+  const nome   = document.getElementById('ci-nome').value.trim();
+  const cat    = document.getElementById('ci-cat').value;
+  const email  = document.getElementById('ci-email').value.trim();
+  const tel    = document.getElementById('ci-tel').value.trim();
+  const nasc   = document.getElementById('ci-nasc').value;
+  const err    = document.getElementById('ci-err');
+  if (!dorsal||!nome) { err.textContent='Preenche o dorsal e o nome.'; return; }
+  if (atletas.find(a=>a.dorsal===dorsal)) { err.textContent=`Dorsal ${dorsal} já existe.`; return; }
+  err.textContent='';
+  atletas.push({dorsal,nome,cat,email,tel,nasc}); atletas.sort((a,b)=>a.dorsal-b.dorsal);
+  saveAll();
+  document.getElementById('ci-dorsal').value=''; document.getElementById('ci-nome').value='';
+  document.getElementById('ci-email').value=''; document.getElementById('ci-tel').value='';
+  document.getElementById('ci-nasc').value='';
+  document.getElementById('ci-update-bar').style.display = 'none';
+  document.getElementById('ci-dorsal').focus();
+  renderCheckin(); updateStats();
+}
+function editarAtleta(dorsal) {
+  document.getElementById('ci-dorsal').value = dorsal;
+  ciVerificarExistente();
+  document.getElementById('ci-nome').focus();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function removeAtleta(dorsal) {
+  if (!confirm(`Remover atleta nº ${dorsal}?`)) return;
+  atletas=atletas.filter(a=>a.dorsal!==dorsal);
+  resultados=resultados.filter(r=>r.dorsal!==dorsal);
+  saveAll(); renderCheckin(); renderResultados(); updateStats();
+}
+function renderCheckin() {
+  const q  = document.getElementById('ci-search').value.toLowerCase();
+  const tb = document.getElementById('tb-ci');
+  let list = atletas;
+  if (q) list=list.filter(a=>a.nome.toLowerCase().includes(q)||String(a.dorsal).includes(q)||( a.email&&a.email.toLowerCase().includes(q)));
+  if (!list.length) { tb.innerHTML=`<tr><td colspan="8" class="empty">${q?'Sem resultados.':'Nenhum atleta registado.'}</td></tr>`; return; }
+  tb.innerHTML = list.map((a,i)=>{
+    const r=resultados.find(x=>x.dorsal===a.dorsal); // any result for this bib
+    const nascFmt = a.nasc ? a.nasc.split('-').reverse().join('/') : '—';
+    return `<tr>
+      <td style="color:var(--text3);font-family:'Courier New',monospace">${i+1}</td>
+      <td><strong>${a.dorsal}</strong></td><td>${a.nome}</td><td>${a.cat}</td>
+      <td style="font-size:15px;color:var(--text2)">${a.email||'—'}</td>
+      <td style="font-size:15px;color:var(--text2)">${nascFmt}</td>
+      <td>${r?'<span class="badge badge-ok">Resultado</span>':'<span class="badge badge-wait">Pendente</span>'}</td>
+      <td><button class="btn btn-sm btn-danger" onclick="removeAtleta(${a.dorsal})">Remover</button>
+          <button class="btn btn-sm btn-export" onclick="editarAtleta(${a.dorsal})" style="margin-left:4px">✏ Editar</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+// RESULTADOS
+// ════════════════════════════════════════════════════════════
+function preencheNome() {
+  const d=parseInt(document.getElementById('res-dorsal').value);
+  const a=atletas.find(x=>x.dorsal===d);
+  document.getElementById('res-nome').value = a?a.nome:(d?'— não encontrado —':'');
+}
+function formatarTempo(el) {
+  // Strip everything except digits
+  const digits = el.value.replace(/\D/g, '').slice(0, 6);
+  if (!digits) { el.value = ''; return; }
+  // Format: last 2 = seconds, next 2 = minutes, rest = hours
+  // 4 digits → mm:ss  |  5 digits → m:mm:ss  |  6 digits → h:mm:ss
+  let formatted;
+  if (digits.length <= 2) {
+    formatted = digits;                                                   // partial seconds
+  } else if (digits.length <= 4) {
+    formatted = digits.slice(0,-2) + ':' + digits.slice(-2);            // mm:ss
+  } else if (digits.length === 5) {
+    formatted = digits[0] + ':' + digits.slice(1,3) + ':' + digits.slice(3); // h:mm:ss
+  } else {
+    formatted = digits.slice(0,2) + ':' + digits.slice(2,4) + ':' + digits.slice(4); // hh:mm:ss
+  }
+  el.value = formatted;
+}
+
+function t2s(str) {
+  if (!str) return null;
+  // Strip colons and re-parse as pure digits → apply same logic as formatarTempo
+  const clean = str.trim();
+  const parts = clean.split(':');
+  if (parts.length === 2) {
+    const m=parseInt(parts[0]), s=parseInt(parts[1]);
+    if (isNaN(m)||isNaN(s)||s>=60||m<0) return null;
+    return m*60+s;
+  }
+  if (parts.length === 3) {
+    const h=parseInt(parts[0]), m=parseInt(parts[1]), s=parseInt(parts[2]);
+    if (isNaN(h)||isNaN(m)||isNaN(s)||s>=60||m>=60||h<0) return null;
+    return h*3600+m*60+s;
+  }
+  return null;
+}
+
+function s2t(s) {
+  if (s >= 3600) {
+    const h = Math.floor(s/3600);
+    const m = Math.floor((s%3600)/60);
+    const sec = s%60;
+    return h+':'+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');
+  }
+  return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+}
+
+function toggleParRow() {
+  const tipo = document.getElementById('res-tipo').value;
+  document.getElementById('res-par-row').style.display = tipo==='pares'||tipo==='equipa' ? 'flex' : 'none';
+}
+function onEventoChange() {
+  const evId = document.getElementById('res-evento').value;
+  const ev   = eventos.find(e=>e.id===evId);
+  const lbl  = getMetricaLabel(ev);
+  const obsLabel = document.getElementById('res-obs-label');
+  const obsInput = document.getElementById('res-obs');
+  if (obsLabel) obsLabel.textContent = lbl;
+  if (obsInput) obsInput.placeholder = `Ex: 12`;
+  // Show/hide second value field (for events where both reps AND extra value make sense)
+  // For now hide it; can be extended
+  const v2wrap = document.getElementById('res-val2-wrap');
+  if (v2wrap) v2wrap.style.display = 'none';
+}
+function preencheNomePar() {
+  const d=parseInt(document.getElementById('res-dorsal-par').value);
+  const a=atletas.find(x=>x.dorsal===d);
+  document.getElementById('res-nome-par').value = a?a.nome:(d?'— não encontrado —':'');
+}
+function addResultado() {
+  const dorsal=parseInt(document.getElementById('res-dorsal').value);
+  const tempo=document.getElementById('res-tempo').value;
+  const obs=parseInt(document.getElementById('res-obs').value);
+  const pen=parseInt(document.getElementById('res-pen').value)||0;
+  const eventoId=document.getElementById('res-evento').value;
+  const tipo=document.getElementById('res-tipo').value;
+  const dorsalPar=tipo!=='individual'?parseInt(document.getElementById('res-dorsal-par').value)||null:null;
+  const err=document.getElementById('res-err');
+  if (!dorsal) { err.textContent='Insere o dorsal.'; return; }
+  if (!atletas.find(a=>a.dorsal===dorsal)) { err.textContent=`Dorsal ${dorsal} não encontrado no check-in.`; return; }
+  if (!eventoId) { err.textContent='Selecciona um evento.'; return; }
+  const tseg=t2s(tempo);
+  if (tseg===null) { err.textContent='Formato inválido. Usa mm:ss (ex: 24:37).'; return; }
+  const evForLabel = eventos.find(e=>e.id===eventoId);
+  if (isNaN(obs)||obs<0) { err.textContent=`Indica o valor de ${getMetricaLabel(evForLabel)}.`; return; }
+  if ((tipo==='pares'||tipo==='equipa') && dorsalPar && !atletas.find(a=>a.dorsal===dorsalPar)) {
+    err.textContent=`Dorsal do parceiro ${dorsalPar} não encontrado.`; return;
+  }
+  err.textContent='';
+  const rid = `${dorsal}_${eventoId}_${tipo}`;
+  const obj={rid,dorsal,eventoId,tipo,dorsalPar:dorsalPar||null,tempo:tempo.trim(),tseg,obs,pen,final:tseg+pen};
+  const idx=resultados.findIndex(r=>r.rid===rid);
+  if (idx>=0) resultados[idx]=obj; else resultados.push(obj);
+  saveAll();
+  document.getElementById('res-dorsal').value=''; document.getElementById('res-nome').value='';
+  document.getElementById('res-tempo').value=''; document.getElementById('res-obs').value='';
+  document.getElementById('res-pen').value='0';
+  if (document.getElementById('res-dorsal-par')) { document.getElementById('res-dorsal-par').value=''; document.getElementById('res-nome-par').value=''; }
+  document.getElementById('res-dorsal').focus();
+  renderResultados(); renderCheckin(); updateStats(); renderEventos();
+}
+function removeResultado(rid) {
+  if (!confirm('Remover este resultado?')) return;
+  resultados=resultados.filter(r=>r.rid!==rid);
+  saveAll(); renderResultados(); renderCheckin(); updateStats(); renderEventos();
+}
+function renderResultados() {
+  const q  = document.getElementById('res-search').value.toLowerCase();
+  const tb = document.getElementById('tb-res');
+  let list = [...resultados].sort((a,b)=>a.dorsal-b.dorsal);
+  if (q) list=list.filter(r=>{ const a=atletas.find(x=>x.dorsal===r.dorsal); return String(r.dorsal).includes(q)||(a&&a.nome.toLowerCase().includes(q)); });
+  if (!list.length) { tb.innerHTML=`<tr><td colspan="10" class="empty">${q?'Sem resultados.':'Nenhum resultado lançado.'}</td></tr>`; return; }
+  tb.innerHTML = list.map(r=>{
+    const a=atletas.find(x=>x.dorsal===r.dorsal)||{nome:'—',cat:'—'};
+    const ev=eventos.find(e=>e.id===r.eventoId);
+    const evNome=ev?ev.nome:(r.eventoId||'—');
+    const parInfo = r.dorsalPar ? (() => { const p=atletas.find(x=>x.dorsal===r.dorsalPar); return p?` + ${p.nome} (${r.dorsalPar})`:''; })() : '';
+    const tipoBadge = r.tipo==='pares'?'<span class="evento-badge par-badge">Pares</span>':r.tipo==='equipa'?'<span class="evento-badge" style="background:#fef9c3;color:#854d0e">Equipa</span>':'<span class="evento-badge">Individual</span>';
+    return `<tr>
+      <td style="font-size:13px">${evNome}</td>
+      <td><strong>${r.dorsal}</strong></td><td>${a.nome}${parInfo}</td>
+      <td>${tipoBadge}</td><td>${a.cat}</td>
+      <td style="font-family:'Courier New',monospace">${r.tempo}</td>
+      <td style="text-align:center" title="${(()=>{const ev=eventos.find(e=>e.id===r.eventoId);return getMetricaLabel(ev);})()}">${r.obs} <span style="font-size:11px;color:var(--text3)">${(()=>{const ev=eventos.find(e=>e.id===r.eventoId);const m=ev?.metrica;if(m==='repeticoes')return'reps';if(m==='distancia')return'm';if(m==='peso')return'kg';if(m==='pontos')return'pts';if(m==='custom')return ev.metricaCustom?.substring(0,4)||'';return'';})()}</span></td>
+      <td style="text-align:center;color:var(--text3)">${r.pen>0?r.pen+'s':'—'}</td>
+      <td style="font-family:'Courier New',monospace"><strong>${s2t(r.final)}</strong></td>
+      <td><button class="btn btn-sm btn-danger" onclick="removeResultado('${r.rid||r.dorsal}')">Remover</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+// CLASSIFICAÇÃO
+// ════════════════════════════════════════════════════════════
+function renderClass() {
+  const cat=document.getElementById('fil-cat').value;
+  const evFil=document.getElementById('fil-evento')?document.getElementById('fil-evento').value:'';
+  const tipoFil=document.getElementById('fil-tipo')?document.getElementById('fil-tipo').value:'';
+  let list=[...resultados];
+  if (cat) list=list.filter(r=>{ const a=atletas.find(x=>x.dorsal===r.dorsal); return a&&a.cat===cat; });
+  if (evFil) list=list.filter(r=>r.eventoId===evFil);
+  if (tipoFil) list=list.filter(r=>(r.tipo||'individual')===tipoFil);
+  // ── Rácio helper: normalised ratio = (val/valMax) / (time/tempoMax)
+  //    Higher is better. Both inputs capped at their max.
+  function calcRacio(r) {
+    const ev = eventos.find(e=>e.id===r.eventoId);
+    if (!ev || !ev.valMax || !ev.tempoMax || r.final<=0) return 0;
+    const valNorm   = Math.min(r.obs,  ev.valMax)  / ev.valMax;   // 0..1
+    const tempoNorm = Math.min(r.final, ev.tempoMax) / ev.tempoMax; // 0..1
+    if (tempoNorm === 0) return 0;
+    return valNorm / tempoNorm;  // higher = more value in less time
+  }
+  function calcRacioDisplay(r) {
+    const v = calcRacio(r);
+    return v > 0 ? v.toFixed(4) : '—';
+  }
+  // Sort based on the event's criterio (if all same event) or default
+  const uniqueEvIds = [...new Set(list.map(r=>r.eventoId))];
+  const singleEv = uniqueEvIds.length===1 ? eventos.find(e=>e.id===uniqueEvIds[0]) : null;
+  if (singleEv && singleEv.criterio==='menor') {
+    list.sort((a,b)=>a.final-b.final||b.obs-a.obs);
+  } else if (singleEv && singleEv.criterio==='racio') {
+    list.sort((a,b)=>calcRacio(b)-calcRacio(a));
+  } else {
+    list.sort((a,b)=>b.obs-a.obs||a.final-b.final);
+  }
+  const tb=document.getElementById('tb-class');
+  if (!list.length) { tb.innerHTML='<tr><td colspan="9" class="empty">Sem resultados para classificar.</td></tr>'; return; }
+  const m=['🥇','🥈','🥉'];
+  tb.innerHTML = list.map((r,i)=>{
+    const a=atletas.find(x=>x.dorsal===r.dorsal)||{nome:'—',cat:'—'};
+    const ev=eventos.find(e=>e.id===r.eventoId);
+    const cls=i===0?'pos-1':i===1?'pos-2':i===2?'pos-3':'';
+    const parInfo = r.dorsalPar ? (() => { const p=atletas.find(x=>x.dorsal===r.dorsalPar); return p?` + ${p.nome}`:''; })() : '';
+    const racioVal = (singleEv && singleEv.criterio==='racio') ? calcRacioDisplay(r) : '';
+    const showRacioCol = singleEv && singleEv.criterio==='racio';
+    if (i===0) { const th=document.getElementById('th-racio'); if(th) th.style.display=showRacioCol?'':'none'; }
+    return `<tr>
+      <td class="${cls}">${m[i]||''} ${i+1}º</td>
+      <td>${r.dorsal}</td><td><strong>${a.nome}</strong>${parInfo}</td>
+      <td style="font-size:13px">${ev?ev.nome:'—'}</td><td>${a.cat}</td>
+      <td style="text-align:center"><strong>${r.obs}</strong></td>
+      <td style="font-family:'Courier New',monospace;text-align:center">${r.tempo}</td>
+      <td style="text-align:center;color:var(--text3)">${r.pen>0?r.pen+'s':'—'}</td>
+      <td style="font-family:'Courier New',monospace"><strong>${s2t(r.final)}</strong></td>
+      <td style="font-family:'Courier New',monospace;display:${showRacioCol?'':'none'}">${racioVal}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+// STATS
+// ════════════════════════════════════════════════════════════
+function updateStats() {
+  const dorsaisComRes = new Set(resultados.map(r=>r.dorsal));
+  document.getElementById('st-total').textContent = atletas.length;
+  document.getElementById('st-res').textContent   = resultados.length;
+  document.getElementById('st-falta').textContent = atletas.length - dorsaisComRes.size;
+  setStatus();
+}
+
+// ════════════════════════════════════════════════════════════
+// EXPORT: CSV & JSON
+// ════════════════════════════════════════════════════════════
+function exportarCSV() {
+  const sorted=[...resultados].sort((a,b)=>b.obs-a.obs||a.final-b.final);
+  let rows=[['Dorsal','Nome','Categoria','Tempo','Obstáculos','Penalização (seg)','Tempo Final']];
+  sorted.forEach(r=>{ const a=atletas.find(x=>x.dorsal===r.dorsal)||{nome:'—',cat:'—'}; rows.push([r.dorsal,a.nome,a.cat,r.tempo,r.obs,r.pen,s2t(r.final)]); });
+  atletas.filter(a=>!resultados.find(r=>r.dorsal===a.dorsal)).forEach(a=>rows.push([a.dorsal,a.nome,a.cat,'','','','']));
+  download((config.nome||'prova')+'_resultados.csv', '\uFEFF'+rows.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n'), 'text/csv');
+}
+
+function exportarExcel() {
+  if (typeof XLSX === 'undefined') { alert('A biblioteca Excel ainda está a carregar. Aguarda um momento.'); return; }
+
+  const nome = config.nome || 'Prova de Obstáculos';
+  const wb   = XLSX.utils.book_new();
+
+  // ── Folha 1: Check-in (inclui email e data de nascimento) ──
+  const ciData = [['Dorsal','Nome','Categoria','Email','Telemóvel','Data Nascimento','Estado']];
+  atletas.forEach(a => {
+    const temRes = resultados.find(r=>r.dorsal===a.dorsal) ? 'Com resultado' : 'Pendente';
+    const nascFmt = a.nasc ? a.nasc.split('-').reverse().join('/') : '';
+    ciData.push([a.dorsal, a.nome, a.cat, a.email||'', a.tel||'', nascFmt, temRes]);
+  });
+  const wsCI = XLSX.utils.aoa_to_sheet(ciData);
+  wsCI['!cols'] = [{wch:8},{wch:30},{wch:14},{wch:28},{wch:16},{wch:16},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, wsCI, 'Check-in');
+
+  // ── Folha 2: Resultados ────────────────────────────────
+  const resData = [['Dorsal','Nome','Categoria','Evento','Tipo','Tempo','Valor','Unidade','Penaliz. (seg)','Tempo Final']];
+  [...resultados].sort((a,b)=>a.dorsal-b.dorsal).forEach(r => {
+    const a = atletas.find(x=>x.dorsal===r.dorsal)||{nome:'—',cat:'—'};
+    const ev = eventos.find(e=>e.id===r.eventoId);
+    const unit = ev ? (ev.metrica==='custom'?ev.metricaCustom:ev.metrica) : 'obstaculos';
+    resData.push([r.dorsal, a.nome, a.cat, ev?ev.nome:'—', r.tipo||'individual', r.tempo, r.obs, unit, r.pen, s2t(r.final)]);
+  });
+  const wsRes = XLSX.utils.aoa_to_sheet(resData);
+  wsRes['!cols'] = [{wch:8},{wch:28},{wch:14},{wch:20},{wch:12},{wch:10},{wch:8},{wch:14},{wch:14},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, wsRes, 'Resultados');
+
+  // ── Folha 3: Classificação ─────────────────────────────
+  const clData = [['Posição','Dorsal','Nome','Categoria','Obstáculos','Tempo','Penaliz. (seg)','Tempo Final']];
+  [...resultados].sort((a,b)=>b.obs-a.obs||a.final-b.final).forEach((r,i) => {
+    const a = atletas.find(x=>x.dorsal===r.dorsal)||{nome:'—',cat:'—'};
+    clData.push([i+1, r.dorsal, a.nome, a.cat, r.obs, r.tempo, r.pen, s2t(r.final)]);
+  });
+  const wsCl = XLSX.utils.aoa_to_sheet(clData);
+  wsCl['!cols'] = [{wch:9},{wch:8},{wch:30},{wch:14},{wch:13},{wch:10},{wch:14},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, wsCl, 'Classificação');
+
+  // ── Folha 4: Por Evento ────────────────────────────────
+  eventos.forEach(ev => {
+    const evRes = [...resultados.filter(r=>r.eventoId===ev.id)].sort((a,b)=>b.obs-a.obs||a.final-b.final);
+    const metLblEv = getMetricaLabel(ev);
+    const evData = [['Posição','Dorsal','Nome','Parceiro','Categoria','Tempo',metLblEv,'Tempo Final']];
+    evRes.forEach((r,i) => {
+      const a = atletas.find(x=>x.dorsal===r.dorsal)||{nome:'—',cat:'—'};
+      const par = r.dorsalPar ? (atletas.find(x=>x.dorsal===r.dorsalPar)||{nome:'—'}).nome : '';
+      evData.push([i+1, r.dorsal, a.nome, par, a.cat, r.tempo, r.obs, s2t(r.final)]);
+    });
+    const wsEv = XLSX.utils.aoa_to_sheet(evData);
+    wsEv['!cols'] = [{wch:8},{wch:8},{wch:25},{wch:20},{wch:12},{wch:10},{wch:12},{wch:12}];
+    XLSX.utils.book_append_sheet(wb, wsEv, ev.nome.substring(0,31));
+  });
+
+  const filename = (nome+'_prova').replace(/[^a-zA-Z0-9À-ÿ_\-]/g,'_').replace(/_+/g,'_')+'.xlsx';
+  XLSX.writeFile(wb, filename);
+}
+function exportarJSON() {
+  download((config.nome||'prova')+'_backup_'+new Date().toISOString().slice(0,10)+'.json', JSON.stringify({atletas,resultados,config,cats,ts:new Date().toISOString()},null,2), 'application/json');
+}
+function carregarJSON() { document.getElementById('file-json').click(); }
+function importarCSV()  { document.getElementById('file-csv').click(); }
+
+function processarJSON(e) {
+  const file=e.target.files[0]; if(!file) return;
+  const r=new FileReader();
+  r.onload=ev=>{ try {
+    const d=JSON.parse(ev.target.result);
+    if (!d.atletas) { alert('Ficheiro JSON inválido.'); return; }
+    atletas=d.atletas||[]; resultados=d.resultados||[]; config=d.config||{}; cats=d.cats||cats; eventos=d.eventos||[];
+    ls(K.A,atletas); ls(K.R,resultados); ls(K.C,config); ls(K.T,cats);
+    applyConfig(); renderCats(); fillCatSelects(); fillEventoSelects(); renderCheckin(); renderResultados(); renderClass(); renderEventos(); updateStats(); updateHeader();
+    alert(`Dados carregados: ${atletas.length} atleta(s), ${resultados.length} resultado(s).`);
+  } catch(err){ alert('Erro ao ler o ficheiro JSON.'); }};
+  r.readAsText(file,'UTF-8'); e.target.value='';
+}
+function processarCSV(e) {
+  const file=e.target.files[0]; if(!file) return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    const lines=ev.target.result.replace(/\r/g,'').split('\n').filter(Boolean);
+    if (lines.length<2) { alert('Ficheiro vazio ou inválido.'); return; }
+    let n=0;
+    lines.slice(1).forEach(line=>{ const c=line.split(',').map(v=>v.replace(/^"|"$/g,'').trim()); const d=parseInt(c[0]),nome=c[1],cat=c[2]||'Geral'; if(!d||!nome) return; if(!atletas.find(a=>a.dorsal===d)){atletas.push({dorsal:d,nome,cat});n++;} });
+    atletas.sort((a,b)=>a.dorsal-b.dorsal); saveAll(); renderCheckin(); updateStats(); alert(`${n} atleta(s) importado(s).`);
+  };
+  r.readAsText(file,'UTF-8'); e.target.value='';
+}
+
+function download(filename, content, type) {
+  const blob=new Blob([content],{type});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ════════════════════════════════════════════════════════════
+// PDF / PRINT
+// ════════════════════════════════════════════════════════════
+function metaStr() { return [config.data?config.data.split('-').reverse().join('/'):'', config.local||''].filter(Boolean).join(' · '); }
+
+function buildResTableHTML() {
+  const list=[...resultados].sort((a,b)=>a.dorsal-b.dorsal);
+  const rows=list.map(r=>{ const a=atletas.find(x=>x.dorsal===r.dorsal)||{nome:'—',cat:'—'}; const ev=eventos.find(e=>e.id===r.eventoId); return `<tr><td>${r.dorsal}</td><td>${a.nome}</td><td>${a.cat}</td><td>${ev?ev.nome:'—'}</td><td>${r.tempo}</td><td>${r.obs}</td><td>${r.pen>0?r.pen+'s':'—'}</td><td><strong>${s2t(r.final)}</strong></td></tr>`; }).join('');
+  return `<table><thead><tr><th>Dorsal</th><th>Nome</th><th>Cat.</th><th>Evento</th><th>Tempo</th><th>Valor</th><th>Penaliz.</th><th>Tempo final</th></tr></thead><tbody>${rows||'<tr><td colspan="8" style="text-align:center;padding:1rem">Sem resultados</td></tr>'}</tbody></table>`;
+}
+function buildClassTableHTML() {
+  const list=[...resultados].sort((a,b)=>b.obs-a.obs||a.final-b.final);
+  const m=['🥇','🥈','🥉'];
+  const rows=list.map((r,i)=>{ const a=atletas.find(x=>x.dorsal===r.dorsal)||{nome:'—',cat:'—'}; return `<tr><td>${m[i]||i+1+'º'}</td><td>${r.dorsal}</td><td>${a.nome}</td><td>${a.cat}</td><td>${r.obs}</td><td>${s2t(r.final)}</td></tr>`; }).join('');
+  return `<table><thead><tr><th>Pos.</th><th>Dorsal</th><th>Nome</th><th>Cat.</th><th>Obstáculos</th><th>Tempo final</th></tr></thead><tbody>${rows||'<tr><td colspan="6" style="text-align:center;padding:1rem">Sem resultados</td></tr>'}</tbody></table>`;
+}
+
+// ════════════════════════════════════════════════════════════
+// PDF — jsPDF + autoTable (gera PDF real, faz download direto)
+// ════════════════════════════════════════════════════════════
+function gerarPDF(tipo) {
+  if (typeof window.jspdf === 'undefined') {
+    alert('A biblioteca PDF ainda está a carregar. Aguarda um momento e tenta novamente.');
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc  = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const nome = config.nome || 'Prova de Obstáculos';
+  const meta = [config.data ? config.data.split('-').reverse().join('/') : '', config.local || ''].filter(Boolean).join(' · ');
+  const ts   = new Date().toLocaleString('pt-PT');
+  const W    = doc.internal.pageSize.getWidth();
+
+  function cabecalho(subtitulo, cor) {
+    const logoH = 22;
+    doc.setFillColor(cor[0], cor[1], cor[2]);
+    doc.rect(0, 0, W, logoH, 'F');
+
+    // Logo
+    const logoData = localStorage.getItem('po-logo');
+    let textX = 14;
+    if (logoData) {
+      try {
+        const imgProps = doc.getImageProperties(logoData);
+        const maxW = 30, maxH = 16;
+        const ratio = Math.min(maxW / imgProps.width, maxH / imgProps.height);
+        const iW = imgProps.width * ratio;
+        const iH = imgProps.height * ratio;
+        doc.addImage(logoData, imgProps.fileType || 'PNG', 6, (logoH - iH) / 2, iW, iH);
+        textX = 6 + iW + 4;
+      } catch(e) {}
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(255, 255, 255);
+    doc.text(nome, textX, 10);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text(subtitulo, textX, 17);
+    if (meta) doc.text(meta, W - 14, 17, { align: 'right' });
+    doc.setTextColor(40, 40, 40);
+  }
+
+  function tblCor(cor, corLight) {
+    return {
+      startY: 28,
+      headStyles: { fillColor: cor, textColor: 255, fontSize: 8, fontStyle: 'bold' },
+      bodyStyles: { fontSize: 9 },
+      alternateRowStyles: { fillColor: corLight },
+      margin: { left: 14, right: 14 },
+      styles: { overflow: 'linebreak', cellPadding: 3 }
+    };
+  }
+
+  const AZUL   = [26,  79,  138];  const AZUL_L   = [234, 241, 251];
+  const VERDE  = [39,  104,  67];  const VERDE_L  = [237, 247, 241];
+
+  function rodape() {
+    const pages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text(`Gerado em ${ts}`, 14, 292);
+      doc.text(`${i} / ${pages}`, W - 14, 292, { align: 'right' });
+    }
+  }
+
+  const tblOpts = {
+    startY: 28,
+    headStyles: { fillColor: [26, 79, 138], textColor: 255, fontSize: 8, fontStyle: 'bold' },
+    bodyStyles: { fontSize: 9 },
+    alternateRowStyles: { fillColor: [234, 241, 251] },
+    margin: { left: 14, right: 14 },
+    styles: { overflow: 'linebreak', cellPadding: 3 }
+  };
+
+  if (tipo === 'resultados') {
+    cabecalho('Resultados', AZUL);
+    const rows = [...resultados].sort((a,b)=>a.dorsal-b.dorsal).map(r => {
+      const a = atletas.find(x=>x.dorsal===r.dorsal) || {nome:'—', cat:'—'};
+      return [r.dorsal, a.nome, a.cat, r.tempo, r.obs, r.pen > 0 ? r.pen+'s' : '—', s2t(r.final)];
+    });
+    doc.autoTable({ ...tblCor(AZUL, AZUL_L), head: [['Dorsal','Nome','Cat.','Tempo','Obstáculos','Penaliz.','Tempo final']], body: rows });
+    rodape();
+    doc.save(nomeFicheiro(nome, 'Resultados'));
+
+  } else if (tipo === 'classificacao') {
+    cabecalho('Classificação Final', VERDE);
+    const medals = ['1º','2º','3º'];
+    const rows = [...resultados].sort((a,b)=>b.obs-a.obs||a.final-b.final).map((r,i) => {
+      const a = atletas.find(x=>x.dorsal===r.dorsal) || {nome:'—', cat:'—'};
+      return [medals[i] || (i+1)+'º', r.dorsal, a.nome, a.cat, r.obs, r.tempo, r.pen>0?r.pen+'s':'—', s2t(r.final)];
+    });
+    doc.autoTable({ ...tblCor(VERDE, VERDE_L), head: [['Pos.','Dorsal','Nome','Cat.','Obstáculos','Tempo','Penaliz.','Tempo final']], body: rows });
+    rodape();
+    doc.save(nomeFicheiro(nome, 'Classificacao'));
+
+  } else if (tipo === 'eventos') {
+    cabecalho('Resumo por Eventos', [107, 33, 168]);
+    eventos.forEach((ev, ei) => {
+      const evRes = [...resultados.filter(r=>r.eventoId===ev.id)].sort((a,b)=>b.obs-a.obs||a.final-b.final);
+      if (!evRes.length) return;
+      if (ei > 0) doc.addPage();
+      cabecalho(ev.nome + ' (' + ev.tipo + ')', [107, 33, 168]);
+      const rows = evRes.map((r,i) => {
+        const a = atletas.find(x=>x.dorsal===r.dorsal)||{nome:'—',cat:'—'};
+        const parInfo = r.dorsalPar ? (() => { const p=atletas.find(x=>x.dorsal===r.dorsalPar); return p?' + '+p.nome:''; })() : '';
+        return [(i+1)+'º', r.dorsal, a.nome+parInfo, a.cat, r.obs, s2t(r.final)];
+      });
+      doc.autoTable({ ...tblCor([107,33,168],[245,234,255]), head: [['Pos.','Dorsal','Nome','Cat.','Obstáculos','Tempo final']], body: rows });
+    });
+    rodape();
+    doc.save(nomeFicheiro(nome, 'Eventos'));
+
+  } else {
+    cabecalho('Resultados', AZUL);
+    const resRows = [...resultados].sort((a,b)=>a.dorsal-b.dorsal).map(r => {
+      const a = atletas.find(x=>x.dorsal===r.dorsal) || {nome:'—', cat:'—'};
+      return [r.dorsal, a.nome, a.cat, r.tempo, r.obs, r.pen>0?r.pen+'s':'—', s2t(r.final)];
+    });
+    doc.autoTable({ ...tblCor(AZUL, AZUL_L), head: [['Dorsal','Nome','Cat.','Tempo','Obstáculos','Penaliz.','Tempo final']], body: resRows });
+
+    doc.addPage();
+    cabecalho('Classificação Final', VERDE);
+    const medals = ['1º','2º','3º'];
+    const clRows = [...resultados].sort((a,b)=>b.obs-a.obs||a.final-b.final).map((r,i) => {
+      const a = atletas.find(x=>x.dorsal===r.dorsal) || {nome:'—', cat:'—'};
+      return [medals[i]||(i+1)+'º', r.dorsal, a.nome, a.cat, r.obs, r.tempo, r.pen>0?r.pen+'s':'—', s2t(r.final)];
+    });
+    doc.autoTable({ ...tblCor(VERDE, VERDE_L), head: [['Pos.','Dorsal','Nome','Cat.','Obstáculos','Tempo','Penaliz.','Tempo final']], body: clRows });
+    rodape();
+    doc.save(nomeFicheiro(nome, 'Relatorio_Completo'));
+  }
+}
+
+function nomeFicheiro(nome, sufixo) {
+  return (nome + '_' + sufixo).replace(/[^a-zA-Z0-9À-ÿ_\-]/g, '_').replace(/_+/g,'_') + '.pdf';
+}
+
+function buildPrintHeader(titulo, cor, subtitulo) {
+  const logo = localStorage.getItem('po-logo');
+  const logoHTML = logo
+    ? `<img src="${logo}" style="height:55px;max-width:120px;object-fit:contain;margin-right:14px;vertical-align:middle">`
+    : '';
+  return `
+    <div style="background:${cor};padding:12px 18px;border-radius:6px 6px 0 0;display:flex;align-items:center;margin-bottom:0">
+      ${logoHTML}
+      <div>
+        <div style="font-family:Georgia,serif;font-size:18.8px;font-weight:bold;color:#fff">${config.nome||'Prova de Obstáculos'}</div>
+        <div style="font-size:12.5px;color:rgba(255,255,255,.75);font-family:'Courier New',monospace;margin-top:2px">${titulo}${metaStr()?' · '+metaStr():''}</div>
+      </div>
+    </div>`;
+}
+
+function imprimirResultados() {
+  document.getElementById('print-zone').innerHTML = `
+    <style>
+      .ph table{width:100%;border-collapse:collapse;font-size:15px}
+      .ph th{background:#1a4f8a;color:#fff;padding:8px 12px;text-align:left;font-size:12.5px;text-transform:uppercase}
+      .ph td{padding:8px 12px;border-bottom:.5px solid #ccc}
+      .ph tr:nth-child(even) td{background:#eaf1fb}
+      .ph .pfooter{font-size:12.5px;color:#999;font-family:'Courier New',monospace;text-align:right;margin-top:10px}
+      @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+    </style>
+    <div class="ph">
+      ${buildPrintHeader('Resultados · ', '#1a4f8a', '')}
+      <div style="padding:10px 0 4px;font-size:13.8px;color:#6b6860;font-family:'Courier New',monospace">${resultados.length} resultado(s)</div>
+      ${buildResTableHTML()}
+      <div class="pfooter">Gerado em ${new Date().toLocaleString('pt-PT')}</div>
+    </div>`;
+  window.print();
+}
+
+function imprimirClass() {
+  document.getElementById('print-zone').innerHTML = `
+    <style>
+      .ph table{width:100%;border-collapse:collapse;font-size:15px}
+      .ph th{background:#8a7450;color:#fff;padding:8px 12px;text-align:left;font-size:12.5px;text-transform:uppercase}
+      .ph td{padding:8px 12px;border-bottom:.5px solid #ccc}
+      .ph tr:nth-child(even) td{background:#f5f0e8}
+      .ph .pfooter{font-size:12.5px;color:#999;font-family:'Courier New',monospace;text-align:right;margin-top:10px}
+      @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+    </style>
+    <div class="ph">
+      ${buildPrintHeader('Classificação Final · ', '#8a7450', '')}
+      <div style="padding:10px 0 4px;font-size:13.8px;color:#6b6860;font-family:'Courier New',monospace">${resultados.length} classificado(s)</div>
+      ${buildClassTableHTML()}
+      <div class="pfooter">Gerado em ${new Date().toLocaleString('pt-PT')}</div>
+    </div>`;
+  window.print();
+}
+
+// ════════════════════════════════════════════════════════════
+// EMAIL
+// ════════════════════════════════════════════════════════════
+function enviarEmail(tipo) {
+  if (typeof window.jspdf === 'undefined') {
+    alert('A biblioteca PDF ainda está a carregar. Aguarda um momento.');
+    return;
+  }
+  const nome   = config.nome  || 'Prova de Obstáculos';
+  const data   = config.data  ? config.data.split('-').reverse().join('/') : '';
+  const local  = config.local || '';
+  const isClass = tipo === 'classificacao';
+
+  // 1. Gerar e fazer download do PDF
+  gerarPDF(tipo);
+
+  // 2. Subject: Nome · Data · Local
+  const subjParts = [nome];
+  if (data)  subjParts.push(data);
+  if (local) subjParts.push(local);
+  const subject = encodeURIComponent(subjParts.join(' · '));
+
+  // 3. Corpo limpo com instrução para anexar
+  const filename = nomeFicheiro(nome, isClass ? 'Classificacao' : 'Resultados');
+  let body = `Olá,\n\n`;
+  body += `Segue em anexo o ficheiro PDF com ${isClass ? 'a classificação final' : 'os resultados'} da prova.\n\n`;
+  body += `Prova: ${nome}\n`;
+  if (data)  body += `Data: ${data}\n`;
+  if (local) body += `Local: ${local}\n`;
+  body += `\nFicheiro a anexar: ${filename}\n`;
+  body += `(O PDF foi descarregado automaticamente para a pasta de Downloads)\n\nCumprimentos`;
+
+  // 4. Abrir email após o download arrancar
+  setTimeout(() => {
+    window.location.href = `mailto:?subject=${subject}&body=${encodeURIComponent(body)}`;
+  }, 800);
+}
+
+// ════════════════════════════════════════════════════════════
+// LIMPAR
+// ════════════════════════════════════════════════════════════
+function limparTudo() {
+  // Build confirmation modal
+  const total = atletas.length;
+  const comRes = resultados.length;
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center';
+
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border-radius:var(--radius-lg);padding:2rem;max-width:420px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.25)">
+      <div style="font-size:40px;text-align:center;margin-bottom:.75rem">⚠️</div>
+      <div style="font-size:20px;font-weight:bold;text-align:center;margin-bottom:.5rem;color:var(--red)">Limpar todos os dados</div>
+      <div style="font-size:16.2px;color:var(--text2);text-align:center;margin-bottom:1.25rem;line-height:1.6">
+        Estás prestes a apagar <strong>${total} atleta(s)</strong> e <strong>${comRes} resultado(s)</strong>.<br>
+        Esta acção é <strong>irreversível</strong>.<br><br>
+        Será criado automaticamente um backup JSON antes de apagar.
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <button id="modal-cancel" class="btn" style="min-width:120px">Cancelar</button>
+        <button id="modal-confirm" class="btn" style="min-width:160px;background:var(--red);color:#fff;border-color:var(--red);font-weight:bold">
+          💾 Backup e limpar
+        </button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  document.getElementById('modal-cancel').onclick = () => overlay.remove();
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  document.getElementById('modal-confirm').onclick = async () => {
+    overlay.remove();
+
+    // Auto-download backup JSON before wiping
+    const ts  = new Date().toISOString().slice(0,16).replace('T','_').replace(/:/g,'-');
+    const bkp = JSON.stringify({ atletas, resultados, config, cats, eventos, backupTs: new Date().toISOString() }, null, 2);
+    const fn  = ((config.nome||'prova')+'_BACKUP_'+ts).replace(/[^a-zA-Z0-9À-ÿ_\-]/g,'_').replace(/_+/g,'_')+'.json';
+    download(fn, bkp, 'application/json');
+
+    // If running on server, also save a timestamped backup in data/
+    if (USE_SERVER) {
+      try {
+        await fetch('/api/backup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: bkp
+        });
+      } catch(e) {}
+    }
+
+    setTimeout(() => {
+      atletas=[]; resultados=[]; saveAll();
+      renderCheckin(); renderResultados(); renderClass(); updateStats();
+    }, 300);
+  };
+}
+
+
+// ════════════════════════════════════════════════════════════
+// EVENTOS — CRUD
+// ════════════════════════════════════════════════════════════
+function toggleMetricaExtra() {
+  const m = document.getElementById('cfg-ev-metrica').value;
+  document.getElementById('cfg-ev-custom-wrap').style.display = m==='custom' ? 'flex' : 'none';
+}
+function toggleRacioHint() {
+  const c = document.getElementById('cfg-ev-criterio').value;
+  const el = document.getElementById('cfg-ev-racio-hint');
+  if (el) el.style.display = c==='racio' ? 'flex' : 'none';
+}
+
+function getMetricaLabel(ev) {
+  if (!ev) return 'Repetições/Obstáculos';
+  if (ev.metrica === 'custom') return ev.metricaCustom || 'Valor';
+  const map = {obstaculos:'Obstáculos',repeticoes:'Repetições',distancia:'Distância (m)',peso:'Peso (kg)',pontos:'Pontos'};
+  return map[ev.metrica] || 'Valor';
+}
+
+function addEvento() {
+  const nome   = document.getElementById('cfg-ev-nome').value.trim();
+  const tipo   = document.getElementById('cfg-ev-tipo').value;
+  const metrica= document.getElementById('cfg-ev-metrica').value;
+  const metricaCustom = metrica==='custom' ? document.getElementById('cfg-ev-custom').value.trim() : '';
+  const criterio   = document.getElementById('cfg-ev-criterio').value;
+  const valMax   = parseFloat(document.getElementById('cfg-ev-val-max').value)  || null;
+  const tempoMax = parseFloat(document.getElementById('cfg-ev-tempo-max').value) || null;
+  if (!nome) return;
+  if (criterio==='racio' && (!valMax || !tempoMax)) {
+    alert('Para o critério Rácio tens de definir o Valor máximo e o Tempo máximo.'); return;
+  }
+  const id = 'ev_' + Date.now();
+  eventos.push({ id, nome, tipo, metrica, metricaCustom, criterio, valMax, tempoMax });
+  saveAll();
+  document.getElementById('cfg-ev-nome').value = '';
+  if (document.getElementById('cfg-ev-custom'))    document.getElementById('cfg-ev-custom').value    = '';
+  if (document.getElementById('cfg-ev-val-max'))   document.getElementById('cfg-ev-val-max').value   = '';
+  if (document.getElementById('cfg-ev-tempo-max')) document.getElementById('cfg-ev-tempo-max').value = '';
+  toggleRacioHint();
+  renderEventos(); fillEventoSelects();
+}
+
+function removeEvento(id) {
+  if (resultados.find(r=>r.eventoId===id)) { alert('Existem resultados neste evento — não é possível remover.'); return; }
+  eventos = eventos.filter(e=>e.id!==id);
+  saveAll(); renderEventos(); fillEventoSelects();
+}
+
+function renderEventos() {
+  const el = document.getElementById('eventos-list');
+  if (!el) return;
+  const tipoLabel = {individual:'🏃 Individual', pares:'👫 Pares', equipa:'👥 Equipa'};
+  el.innerHTML = eventos.map(e => {
+    const metLbl = getMetricaLabel(e);
+    const criterioLbl = e.criterio==='menor' ? '⏱ menor tempo ganha' : e.criterio==='racio' ? `⚖ rácio (val_máx=${e.valMax||'?'} / t_máx=${e.tempoMax||'?'}s)` : '📈 maior valor ganha';
+    const limiteStr = (e.valMax||e.tempoMax) ? ` · val_máx: ${e.valMax||'—'} · t_máx: ${e.tempoMax||'—'}s` : '';
+    return `<span style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:6px 14px;font-size:14px">
+      <span>${tipoLabel[e.tipo]||e.tipo}</span>
+      <strong>${e.nome}</strong>
+      <span style="color:var(--text3);font-size:12px">· ${metLbl} · ${criterioLbl}${limiteStr||''}</span>
+      <span onclick="removeEvento('${e.id}')" style="cursor:pointer;color:var(--text3);font-size:12px;margin-left:4px">✕</span>
+    </span>`;
+  }).join('') || '<span style="font-size:14px;color:var(--text3);font-style:italic">Nenhum evento criado. Adiciona pelo menos um.</span>';
+  renderEventosResumo();
+}
+
+// ════════════════════════════════════════════════════════════
+// EVENTOS — ANÁLISE POR ATLETA/DORSAL (tab Eventos)
+// ════════════════════════════════════════════════════════════
+function renderEventosAtleta() {
+  const q = (document.getElementById('ev-search')||{value:''}).value.trim().toLowerCase();
+  const out = document.getElementById('ev-atleta-result');
+  if (!out) return;
+  if (!q) { out.innerHTML=''; return; }
+
+  // Find matching athletes
+  const matched = atletas.filter(a =>
+    String(a.dorsal).includes(q) || a.nome.toLowerCase().includes(q)
+  );
+
+  if (!matched.length) {
+    out.innerHTML=`<div class="card"><p style="color:var(--text3);font-style:italic">Nenhum atleta encontrado.</p></div>`;
+    return;
+  }
+
+  out.innerHTML = matched.map(a => {
+    const bibResults = resultados.filter(r => r.dorsal===a.dorsal || r.dorsalPar===a.dorsal);
+    if (!bibResults.length) {
+      return `<div class="card">
+        <div class="bib-section-title">Dorsal ${a.dorsal} — ${a.nome} (${a.cat})</div>
+        <p style="color:var(--text3);font-style:italic;font-size:14px">Sem resultados registados.</p>
+      </div>`;
+    }
+
+    const totalObs = bibResults.reduce((s,r)=>s+r.obs,0);
+    const bestTime = bibResults.reduce((best,r)=> !best||r.final<best?r.final:best, null);
+    const evCount  = new Set(bibResults.map(r=>r.eventoId)).size;
+
+    const rows = bibResults.map(r => {
+      const ev = eventos.find(e=>e.id===r.eventoId);
+      const isPar = r.tipo!=='individual';
+      const parNome = r.dorsalPar ? (atletas.find(x=>x.dorsal===r.dorsalPar)||{nome:'—'}).nome : '';
+      const parInfo = isPar && parNome ? `<span class="evento-badge par-badge" style="font-size:11px">c/ ${parNome}</span>` : '';
+      return `<tr>
+        <td>${ev?ev.nome:'—'}</td>
+        <td>${r.tipo==='individual'?'🏃':'👫'} ${r.tipo}${parInfo}</td>
+        <td style="font-family:'Courier New',monospace">${r.tempo}</td>
+        <td style="text-align:center">${r.obs}</td>
+        <td style="text-align:center;color:var(--text3)">${r.pen>0?r.pen+'s':'—'}</td>
+        <td style="font-family:'Courier New',monospace"><strong>${s2t(r.final)}</strong></td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="card">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:1rem">
+        <div style="font-size:22px;font-weight:bold;background:#1a1916;color:#fff;border-radius:8px;padding:4px 14px">${a.dorsal}</div>
+        <div>
+          <div style="font-size:17px;font-weight:bold">${a.nome}</div>
+          <div style="font-size:13px;color:var(--text3)">${a.cat}${a.nasc?' · Nasc. '+a.nasc.split('-').reverse().join('/'):''}${a.email?' · '+a.email:''}${a.tel?' · 📱 '+a.tel:''}</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap;text-align:center">
+          <div class="stat" style="min-width:70px;padding:.5rem .75rem"><div class="stat-val" style="font-size:22px">${evCount}</div><div class="stat-lbl">Eventos</div></div>
+          <div class="stat" style="min-width:70px;padding:.5rem .75rem"><div class="stat-val" style="font-size:22px">${totalObs}</div><div class="stat-lbl">Total Obs.</div></div>
+          <div class="stat" style="min-width:70px;padding:.5rem .75rem"><div class="stat-val" style="font-size:18px;font-family:'Courier New'">${bestTime!==null?s2t(bestTime):'—'}</div><div class="stat-lbl">Melhor tempo</div></div>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl-bib">
+          <thead><tr><th>Evento</th><th>Tipo</th><th>Tempo</th><th>Obstáculos</th><th>Penaliz.</th><th>Tempo final</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderEventosResumo() {
+  const el = document.getElementById('ev-resumo-table');
+  if (!el) return;
+  if (!eventos.length) { el.innerHTML='<p style="color:var(--text3);font-style:italic;font-size:14px">Sem eventos configurados.</p>'; return; }
+
+  el.innerHTML = eventos.map(ev => {
+    const evRes = resultados.filter(r=>r.eventoId===ev.id);
+    if (!evRes.length) return `<div class="bib-section"><div class="bib-section-title">${ev.nome} (${ev.tipo}) — sem resultados</div></div>`;
+
+    function _racio(r) {
+      if (!ev.valMax||!ev.tempoMax||r.final<=0) return 0;
+      return (Math.min(r.obs,ev.valMax)/ev.valMax) / (Math.min(r.final,ev.tempoMax)/ev.tempoMax);
+    }
+    const sorted = [...evRes].sort((a,b)=> ev.criterio==='menor' ? a.final-b.final||b.obs-a.obs : ev.criterio==='racio' ? _racio(b)-_racio(a) : b.obs-a.obs||a.final-b.final);
+    const medals = ['🥇','🥈','🥉'];
+    const rows = sorted.map((r,i)=>{
+      const a = atletas.find(x=>x.dorsal===r.dorsal)||{nome:'—',cat:'—'};
+      const parInfo = r.dorsalPar ? (() => { const p=atletas.find(x=>x.dorsal===r.dorsalPar); return p?` + ${p.nome}`:''; })() : '';
+      return `<tr>
+        <td>${medals[i]||''} ${i+1}º</td>
+        <td>${r.dorsal}</td>
+        <td>${a.nome}${parInfo}</td>
+        <td>${a.cat}</td>
+        <td style="text-align:center">${r.obs}</td>
+        <td style="font-family:'Courier New',monospace"><strong>${s2t(r.final)}</strong></td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="bib-section" style="margin-bottom:1.5rem">
+      <div class="bib-section-title" style="font-size:14px;color:var(--text);margin-bottom:8px">
+        ${ev.nome} <span class="evento-badge">${ev.tipo}</span> — ${evRes.length} resultado(s)
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl-bib">
+          <thead><tr><th>Pos.</th><th>Dorsal</th><th>Nome</th><th>Cat.</th><th>${getMetricaLabel(ev)}</th><th>Tempo final</th>${ev.criterio==='racio'?'<th>Rácio</th>':''}</tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function imprimirEventos() {
+  const evHtml = document.getElementById('ev-resumo-table').innerHTML;
+  document.getElementById('print-zone').innerHTML = `
+    <style>
+      .ph table{width:100%;border-collapse:collapse;font-size:14px}
+      .ph th{background:#6b21a8;color:#fff;padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase}
+      .ph td{padding:6px 10px;border-bottom:.5px solid #ccc}
+      .ph .pfooter{font-size:11px;color:#999;font-family:'Courier New',monospace;text-align:right;margin-top:10px}
+      .bib-section{margin-bottom:1.5rem;border-left:3px solid #6b21a8;padding-left:10px}
+      .bib-section-title{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#6b21a8;margin-bottom:6px}
+      @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+    </style>
+    <div class="ph">
+      ${buildPrintHeader('Eventos · Resumo · ', '#6b21a8', '')}
+      <div style="padding:10px 0 4px;font-size:13px;color:#6b6860;font-family:'Courier New',monospace">${eventos.length} evento(s) · ${resultados.length} resultado(s)</div>
+      ${evHtml}
+      <div class="pfooter">Gerado em ${new Date().toLocaleString('pt-PT')}</div>
+    </div>`;
+  window.print();
+}
+
+// ════════════════════════════════════════════════════════════
+// START
+// ════════════════════════════════════════════════════════════
+load();
+</script>
+</body>
+</html>
